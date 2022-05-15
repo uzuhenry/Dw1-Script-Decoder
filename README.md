@@ -19,6 +19,9 @@ You also have the option to hide raw data, or filter by a specific instruction t
 # Proyected updates:
 
 -Rebuilding .SCN file feature
+
+-Adding instruction number, and instruction offset searchbars
+
 -Editing instructions
 
 -Evolve to a full fledged script editor
