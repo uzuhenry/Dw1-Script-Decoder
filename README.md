@@ -8,6 +8,8 @@ There's still some instructions which use is still unknown, i hope this tool all
 
 You also have the option to hide raw data, or filter by a specific instruction type(godsend if you want to map text).
 
+The tool, also stores the file header, though it doesn't anything with it yet.
+
 
 # Thanks to:
 
