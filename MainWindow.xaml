@@ -1,0 +1,28 @@
+﻿<Window x:Class="DW_Script_decoder.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:DW_Script_decoder"
+        mc:Ignorable="d"
+        Title="DW1 Script Decoder by Uzuhenry" Height="720" Width="1280">
+    <Grid>
+        <Grid.Background>
+            <ImageBrush ImageSource="/digimon-world-wallpapers-104911-1035662-719191.jpg" Stretch="UniformToFill" TileMode="None"/>
+        </Grid.Background>
+        <Button x:Name="botonAbrir" Content="Open file" HorizontalAlignment="Left" Height="85" Margin="42,53,0,0" VerticalAlignment="Top" Width="191" Click="botonAbrir_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FF8CC8F7"/>
+                    <GradientStop Color="#FF4D65EA" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <ListBox x:Name="listaEventos" Margin="546,53,426,36" d:ItemsSource="{d:SampleData ItemCount=5}" SelectionChanged="listaEventos_SelectionChanged"/>
+        <TextBox x:Name="contenidoEvento" HorizontalAlignment="Left" Height="299" Margin="878,53,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="370" FontSize="16"/>
+        <ComboBox x:Name="supahcombobax" HorizontalAlignment="Left" Height="45" Margin="878,379,0,0" VerticalAlignment="Top" Width="370" SelectionChanged="supahcombobax_SelectionChanged" FontSize="16"/>
+
+
+
+    </Grid>
+</Window>
