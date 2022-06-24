@@ -7,20 +7,38 @@
         mc:Ignorable="d"
         Title="DW1 Script Decoder by Uzuhenry" Height="720" Width="1280">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="171*"/>
+            <RowDefinition Height="181*"/>
+        </Grid.RowDefinitions>
         <Grid.Background>
-            <ImageBrush ImageSource="/digimon-world-wallpapers-104911-1035662-719191.jpg" Stretch="UniformToFill" TileMode="None"/>
+            <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                <GradientStop Color="#FF7AA1EF"/>
+                <GradientStop Color="#FF02D6BE" Offset="1"/>
+            </LinearGradientBrush>
         </Grid.Background>
-        <Button x:Name="botonAbrir" Content="Open file" HorizontalAlignment="Left" Height="85" Margin="42,53,0,0" VerticalAlignment="Top" Width="191" Click="botonAbrir_Click">
+        <Button x:Name="botonAbrir" Content="Open file" HorizontalAlignment="Left" Height="85" Margin="42,53,0,0" VerticalAlignment="Top" Width="191" Click="botonAbrir_Click" FontWeight="Bold" FontSize="16">
             <Button.Background>
                 <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
-                    <GradientStop Color="#FF8CC8F7"/>
-                    <GradientStop Color="#FF4D65EA" Offset="1"/>
+                    <GradientStop Color="#FFD5FBB0"/>
+                    <GradientStop Color="#FF0DCA10" Offset="1"/>
                 </LinearGradientBrush>
             </Button.Background>
         </Button>
-        <ListBox x:Name="listaEventos" Margin="546,53,426,36" d:ItemsSource="{d:SampleData ItemCount=5}" SelectionChanged="listaEventos_SelectionChanged"/>
-        <TextBox x:Name="contenidoEvento" HorizontalAlignment="Left" Height="299" Margin="878,53,0,0" TextWrapping="Wrap" Text="TextBox" VerticalAlignment="Top" Width="370" FontSize="16"/>
-        <ComboBox x:Name="supahcombobax" HorizontalAlignment="Left" Height="45" Margin="878,379,0,0" VerticalAlignment="Top" Width="370" SelectionChanged="supahcombobax_SelectionChanged" FontSize="16"/>
+        <ListBox x:Name="listaEventos" Margin="546,53,426,36" d:ItemsSource="{d:SampleData ItemCount=5}" SelectionChanged="listaEventos_SelectionChanged" Grid.RowSpan="2"/>
+        <TextBox x:Name="contenidoEvento" HorizontalAlignment="Left" Height="299" Margin="878,53,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="370" FontSize="16" Grid.RowSpan="2"/>
+        <ComboBox x:Name="supahcombobax" HorizontalAlignment="Left" Height="45" Margin="878,58,0,0" VerticalAlignment="Top" Width="370" SelectionChanged="supahcombobax_SelectionChanged" FontSize="16" Grid.Row="1"/>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,36,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Grid.Row="1"><Run Language="es-es" Text="Instruction filter:"/></TextBlock>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold"><Run Text="Instruction "/><Run Language="es-es" Text="content"/><Run Text=":"/></TextBlock>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="553,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold"><Run Text="Instruction "/><Run Language="es-es" Text="list:"/></TextBlock>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,140,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Grid.Row="1"><Run Text="Instruction"/><Run Language="es-es" Text=" number search:"/></TextBlock>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,223,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Grid.Row="1"><Run Text="Instruction "/><Run Language="es-es" Text="offset search:"/></TextBlock>
+        <TextBox x:Name="boxnumse" HorizontalAlignment="Left" Height="37" Margin="878,167,0,0" Grid.Row="1" TextWrapping="Wrap" Text="000000" VerticalAlignment="Top" Width="201" TextAlignment="Left" InputScope="Number" FontSize="20" FontWeight="Bold"/>
+        <TextBox x:Name="boxoffse" HorizontalAlignment="Left" Height="37" Margin="878,250,0,0" Grid.Row="1" TextWrapping="Wrap" Text="000000" VerticalAlignment="Top" Width="201" InputScope="Number" FontSize="20" FontWeight="Bold"/>
+        <Button x:Name="botonsearchnum" Content="Number Search" HorizontalAlignment="Left" Height="37" Margin="1093,167,0,0" Grid.Row="1" VerticalAlignment="Top" Width="156" FontWeight="Bold" Click="botonsearchnum_Click"/>
+        <Button x:Name="botonsearchoff" Content="Offset Search" HorizontalAlignment="Left" Height="37" Margin="1093,250,0,0" Grid.Row="1" VerticalAlignment="Top" Width="156" FontWeight="Bold" Click="botonsearchoff_Click"/>
+        <ListBox x:Name="listaScripts" Margin="294,53,759,158" d:ItemsSource="{d:SampleData ItemCount=5}" Grid.RowSpan="2" SelectionChanged="listaScripts_SelectionChanged"/>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="306,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold"><Run Language="es-es" Text="Script "/><Run Text="list:"/></TextBlock>
 
 
 

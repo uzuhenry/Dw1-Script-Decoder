@@ -30,6 +30,8 @@ namespace DW_Script_decoder
             public bool active;
             public int indexNo;
             public int evenType;
+            public int scriptId;
+            public int scriptSection;
             public int evenArgInt;
             public string evenName;
             public string evenArg1;
@@ -42,8 +44,10 @@ namespace DW_Script_decoder
             {
                 active = true;
                 indexNo = 0;
-                evenType= 0;
-                evenArgInt=0;
+                scriptId = 400;
+                scriptSection=300;
+                evenType = 0;
+                evenArgInt= 0;
                 evenName = "";
                 evenArg1 = "";
                 evenArg2 = "";
@@ -53,7 +57,23 @@ namespace DW_Script_decoder
             }
 
         }
+        public struct ScriptFile
+        {
+            public bool active;
+            public int indexNo;
+            public int scriptPos;
+            
+            public ScriptFile()
+            {
+                active = true;
+                indexNo = 0;
+                scriptPos = 0;
+            }
+
+        }
         public List<Eventaso> eventasos = new List<Eventaso>();
+        public List<Eventaso> eventasosdisplay = new List<Eventaso>();
+        public List<ScriptFile> scriptfiles = new List<ScriptFile>();
         public MainWindow()
         {
             InitializeComponent();
@@ -67,6 +87,7 @@ namespace DW_Script_decoder
             {
                 listaEventos.Items.Clear();
                 eventasos.Clear();
+                eventasosdisplay.Clear();
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
                 Encoding jenc = Encoding.GetEncoding(932);
                 int counterEven = 0;
@@ -78,28 +99,83 @@ namespace DW_Script_decoder
                     {
                         
                         long finalArchivo = br.BaseStream.Length;
-                       
                         byte[] chufillo;
+                        chufillo = br.ReadBytes(4);
+                        //Array.Reverse(chufillo);
+                        int headerSize = (int)BitConverter.ToUInt32(chufillo,0);                      
+                        int bufferConversor = 0;
                         string chufilla = "";
-                        while(chufilla != "FFFF")
+                        int numsecciones = 0;
+                        int inSection = 0;
+                        //Leemos el header
+                        while(br.BaseStream.Position < headerSize)
                         {
-                            chufillo = br.ReadBytes(2);
+                            chufillo = br.ReadBytes(4);
+                            //Array.Reverse(chufillo);
+                            bufferConversor= (int)BitConverter.ToUInt32(chufillo,0);
+                            if (bufferConversor < finalArchivo&&bufferConversor!=0)
+                            {
+                                scriptfiles.Add(new ScriptFile() { indexNo= counterEven, scriptPos = bufferConversor });
+                                counterEven++;
+                            }
                             chufilla = BitConverter.ToString(chufillo).Replace("-", string.Empty);
                             fileHeaderstring += chufilla;
                         }
-                        while (br.BaseStream.Position < finalArchivo)
+                        counterEven = 0;
+                        //Leemos los scripts
+                        for (int h = 0 ; h < scriptfiles.Count(); h++)
                         {
-                            instruccionLeida = false;
-                            instruccionLeida = LeerInstruccion(br,counterEven);
-                            if (instruccionLeida)
+                            br.BaseStream.Position = scriptfiles[h].scriptPos;
+                            chufillo = br.ReadBytes(2);
+                            //Array.Reverse(chufillo);
+                            bufferConversor = (int)BitConverter.ToUInt16(chufillo, 0);
+                            headerSize = bufferConversor + scriptfiles[h].scriptPos; //headersize aqui es solo un puntero
+                            //calculamos el número de secciones
+                            numsecciones=(bufferConversor - 4) / 4;
+                            int[] seccionoffset = new int[numsecciones];
+                            int[] seccionid = new int[numsecciones];
+                            int seccioncount = 0;
+                            //leemos el header para sacar las secciones
+                            for (int i = 0; i < numsecciones; i++)
                             {
-                                counterEven++;
+                                chufillo = br.ReadBytes(2);
+                                //Array.Reverse(chufillo);
+                                bufferConversor = (int)BitConverter.ToUInt16(chufillo, 0);
+                                seccionid[i] = bufferConversor;
+                                chufillo = br.ReadBytes(2);
+                                //Array.Reverse(chufillo);
+                                bufferConversor = (int)BitConverter.ToUInt16(chufillo, 0);
+                                seccionoffset[i]= bufferConversor + scriptfiles[h].scriptPos;
                             }
-                            
+                            chufillo = br.ReadBytes(2); //cerramos header
+                            //leemos instrucciones
+                            instruccionLeida = false;
+                            while (br.BaseStream.Position < finalArchivo && !instruccionLeida)
+                            {
+                                for (int i = 0; i < numsecciones; i++)
+                                {
+                                    if(br.BaseStream.Position >= seccionoffset[i])
+                                    {
+                                        inSection = seccionid[i];
+                                    }
+                                }
+                                instruccionLeida = false;
+                                instruccionLeida = LeerInstruccion(br, counterEven, inSection, h);
+                                counterEven++;
+
+                            }
+
+
                         }
-                        for(int i = 0; i < eventasos.Count; i++)
+                        listaScripts.Items.Add("All Scripts");
+                        for (int i = 0; i < scriptfiles.Count; i++)
                         {
-                            listaEventos.Items.Add(i.ToString("000000") + " - "+ eventasos[i].evenPos + " - "+eventasos[i].evenName);
+                            listaScripts.Items.Add("Script  - " + scriptfiles[i].indexNo + " - " + scriptfiles[i].scriptPos.ToString("X"));
+                        }
+                        
+                        for (int i = 0; i < eventasos.Count; i++)
+                        {
+                            listaEventos.Items.Add(i.ToString("000000") + " - " + eventasos[i].scriptSection.ToString("000") + " - " + eventasos[i].evenPos + " - "+eventasos[i].evenName);
                         }
                         fileIsLoaded=true;
                         counterEven = 0;
@@ -115,6 +191,8 @@ namespace DW_Script_decoder
                         supahcombobax.Items.Add(counterEven.ToString("X") + " - UFO 12");
                         counterEven = 19;
                         supahcombobax.Items.Add(counterEven.ToString("X") + " - Jump and Link");
+                        counterEven = 20;
+                        supahcombobax.Items.Add(counterEven.ToString("X") + " - Jump Return???");
                         counterEven = 21;
                         supahcombobax.Items.Add(counterEven.ToString("X") + " - Jump Return");
                         counterEven = 22;
@@ -283,878 +361,929 @@ namespace DW_Script_decoder
                         supahcombobax.Items.Add(counterEven.ToString("X") + " - Set script");
                         counterEven = 254;
                         supahcombobax.Items.Add(counterEven.ToString("X") + " - End Section");
+                        counterEven = 255;
+                        supahcombobax.Items.Add(counterEven.ToString("X") + " - Flushed Data");
                     }
                 }
             }
         }
 
-        public bool LeerInstruccion(BinaryReader lector,int contador)
+        public bool LeerInstruccion(BinaryReader lector, int contador, int section, int scripid)
         {
-            string offsetevento = lector.BaseStream.Position.ToString("X");
+            string offsetevento = lector.BaseStream.Position.ToString("X6");
             //Console.WriteLine(offsetevento);
             int analiza = lector.ReadByte();
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             Encoding jenc = Encoding.GetEncoding(932);
-            bool donete = true;
+            bool donete = false;
             string[] offsetleido;
             string hex;
             byte[] paquito;
             string leido = "";
             switch (analiza)
-            {
-                case 16:    
-                    paquito = lector.ReadBytes(1);
-                    offsetleido = new string[paquito[0]];
-                    int chuflen = paquito[0];
-                    for (int i = 0; i < chuflen; i++)
-                    {
+                {
+                    case 16:
+                        paquito = lector.ReadBytes(1);
+                        offsetleido = new string[paquito[0]];
+                        int chuflen = paquito[0];
+                        for (int i = 0; i < chuflen; i++)
+                        {
                             paquito = lector.ReadBytes(2);
                             Array.Reverse(paquito);
                             offsetleido[i] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                             
-                    }                            
-                    eventasos.Add(new Eventaso(chuflen) {evenType = analiza, indexNo = contador, evenName = "Set selection", evenPos = offsetevento, evenStrings = offsetleido, evenArgInt = chuflen });
-                    break;
-                case 18:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "UFO 12", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 19:    
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() {evenType = analiza, indexNo = contador, evenName = "Jump and Link", evenPos = offsetevento, evenArg1 = leido});
-                    break;
-                case 21:
-                    paquito = lector.ReadBytes(1);
-                    eventasos.Add(new Eventaso() {evenType = analiza, indexNo = contador, evenName = "Jump Return",  evenPos = offsetevento});
-                    break;
-                case 22:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Jump", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 23:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[0]= BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Jump to File", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 24: //switch
-                    paquito = lector.ReadBytes(1);
-                    hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    int juli = paquito[1];
-                    offsetleido = new string[juli];
-                    for (int i = 0; i < juli; i++)
-                    {
-                        paquito = lector.ReadBytes(2);
-                        Array.Reverse(paquito);
-                        offsetleido[i]= BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    }
-                    eventasos.Add(new Eventaso(juli) { evenType = analiza, indexNo = contador, evenName = "Switch", evenPos = offsetevento, evenStrings = offsetleido, evenArgInt=juli, evenArg1= hex});
-                    break;
-                case 25: //if
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    byte[] comperator;
-                    bool kepplooping = true;
-                    comperator = lector.ReadBytes(2);
-                    Array.Reverse(comperator);
-                    int buferinto = 0;
-                    int comperatorid = comperator[1];
-                    Array.Reverse(comperator);
-                    hex = BitConverter.ToString(comperator).Replace("-", string.Empty);
-                    offsetleido[0] += hex;
-                    while (kepplooping)
-                    {
-                        switch (comperatorid)
-                        {
-                            case 0:
-                                paquito = lector.ReadBytes(2);
-                                Array.Reverse(paquito);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                break;
-                            case 1:
-                                paquito = lector.ReadBytes(2);
-                                Array.Reverse(paquito);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                break;
-                            case 32:
-                                paquito = lector.ReadBytes(1);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                paquito = lector.ReadBytes(1);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                paquito = lector.ReadBytes(2);
-                                Array.Reverse(paquito);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                break;
-                            case 33:
-                                paquito = lector.ReadBytes(1);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                paquito = lector.ReadBytes(1);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                paquito = lector.ReadBytes(2);
-                                Array.Reverse(paquito);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                break;
-                            case 36:
-                                paquito = lector.ReadBytes(1);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                paquito = lector.ReadBytes(1);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                paquito = lector.ReadBytes(2);
-                                Array.Reverse(paquito);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                break;
-                            case 37:
-                                paquito = lector.ReadBytes(1);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                paquito = lector.ReadBytes(4);
-                                Array.Reverse(paquito);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                break;
-                            default:
-                                paquito = lector.ReadBytes(1);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                paquito = lector.ReadBytes(1);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                break;
-                        }
-                        paquito = lector.ReadBytes(2);
-                        buferinto = paquito[0];
-                        Array.Reverse(paquito);
-                        
-                        if (buferinto == 24)
-                        {
-                            kepplooping = false;
-                            Array.Reverse(paquito);
-                            offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                        }
-                        else
-                        {
-                            
-                            if(buferinto > 63 && buferinto < 127)
-                            {
-                                Array.Reverse(paquito);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                Array.Reverse(paquito);
-                                comperatorid = buferinto - 64;
-                            }
-                            if(buferinto > 127)
-                            {
-                                Array.Reverse(paquito);
-                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                                Array.Reverse(paquito);
-                                comperatorid = buferinto - 128;
-                            }
-                            
-                        }
-                        //Console.WriteLine(offsetleido[0]);
-                    }
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1]= BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "IF", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 26:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    
-                    hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    int bufferinto = 0;
-                    while (paquito.Length > 0 & hex != "0000")
-                    {
-                        bufferinto = BitConverter.ToUInt16(paquito, 0);
-                        if (bufferinto > 10000)
-                        {
-                            leido+= jenc.GetString(paquito);
-                        }
-                        else
-                        {
-                            leido+="<"+ BitConverter.ToString(paquito).Replace("-", string.Empty)+">";
-                            if (hex == "0D00")
-                            {
-                                leido += "\n";
-                            }
-                        }
-                        paquito = lector.ReadBytes(2);
-                        
-                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    }
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Show Text Box", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 27:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Dialog Owner", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 28:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Trigger", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 29:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Unset Trigger", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 30:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set P Stat", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 31:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Add P Stat", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 32:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Reduce P Stat", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 33:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Store Map ID", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 34:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Store Digimon Type", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 35:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Inventory Size", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 36:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Store Random", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 37:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Store Date", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 38:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Textbox Size", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 39:
-                    paquito = lector.ReadBytes(1);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Fadeout HUD", evenPos = offsetevento });
-                    break;
-                case 40:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Give Item", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 41:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Remove Item", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 42:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(4);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Add Money", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 43:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(4);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Reduce Money", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 44: //CompareDate
-                    offsetleido = new string[8];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[4] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[5] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[6] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[7] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Compare Date", evenPos = offsetevento, evenStrings = offsetleido });
-                    break;
-                case 45:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Learn Move", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 47:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Give Card", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 48:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Take Card", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 49:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Merit", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 50:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Add Merit", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 51:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Reduce Merit", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 52:
-                    paquito = lector.ReadBytes(1);
-                    hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Stat", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
-                    break;
-                case 53:
-                    paquito = lector.ReadBytes(1);
-                    hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Add Stat", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
-                    break;
-                case 54:
-                    paquito = lector.ReadBytes(1);
-                    hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Reduce Stat", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
-                    break;
-                case 55:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Advance To Date At", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 56:
-                    paquito = lector.ReadBytes(1);
-                    hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(4);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Add Minutes to Date At", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
-                    break;
-                case 57:
-                    paquito = lector.ReadBytes(1);
-                    hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(4);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Add Minutes to Date At2", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
-                    break;
-                case 63:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Store Digimon Value", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 70:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Load Digimon", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 71:
-                    offsetleido = new string[3];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Digimon", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
-                    break;
-                case 72:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Unload Entity", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 73:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Call Digimon Routine", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 74:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Wait for Entity", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 75:
-                    offsetleido = new string[3];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Warp To", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
-                    break;
-                case 76:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Entity Look at Entity", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 77:
-                    paquito = lector.ReadBytes(1);
-                    hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Entity Set Rotation", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
-                    break;
-                case 78:
-                    offsetleido = new string[4];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso(4) { evenType = analiza, indexNo = contador, evenName = "Entity Walk To", evenPos = offsetevento, evenStrings = offsetleido });
-                    break;
-                case 79:
-                    offsetleido = new string[3];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Move Camera To", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
-                    break;
-                case 80:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Move Camera To Entity", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 81:
-                    offsetleido = new string[3];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Entity Walk To Entity", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
-                    break;
-                case 82:
-                    offsetleido = new string[4];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso(4) { evenType = analiza, indexNo = contador, evenName = "Entity Walk To With Camera", evenPos = offsetevento, evenStrings = offsetleido });
-                    break;
-                case 83:
-                    offsetleido = new string[3];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Entity Walk To Entity With Camera", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
-                    break;
-                case 84:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Patrol", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 85:
-                    offsetleido = new string[3];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Textbox Origin", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
-                    break;
-                case 86:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Play Animation", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 87:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Object Visibility", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 88:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Teleport", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 90:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Play Sound", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 93:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set BGM", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 94:
-                    paquito = lector.ReadBytes(1);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Stop BGM", evenPos = offsetevento });
-                    break;
-                case 100:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Call Routine", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 101:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Remove Condition", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 102:
-                    paquito = lector.ReadBytes(1);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Start Battle", evenPos = offsetevento });
-                    break;
-                case 103:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Delay (Wait)", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 104:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Textbox Autoclose Delay", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 105:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Deal Damage", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 106:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Autotalk", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 107: //Comando especial, requiere investigación
-                    paquito = lector.ReadBytes(1);
-                    bool chuperloop = true;
-                    hex = "";
-                    while (chuperloop)
-                    {
-                        paquito = lector.ReadBytes(1);
-                        hex += BitConverter.ToString(paquito).Replace("-", string.Empty);
-                        if (paquito[0] >254)
-                        {
-                            chuperloop = false;
-                        }
-                    }
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Unknown function 6B", evenPos = offsetevento, evenArg1 = hex });
-                    break;
-                case 108:
-                    offsetleido = new string[4];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso(4) { evenType = analiza, indexNo = contador, evenName = "Entity Move To", evenPos = offsetevento, evenStrings = offsetleido });
-                    break;
-                case 112:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Rotate 3D Object", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 113:
-                    offsetleido = new string[7];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[4] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[5] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[6] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso(7) { evenType = analiza, indexNo = contador, evenName = "Move Object To", evenPos = offsetevento, evenStrings = offsetleido });
-                    break;
-                case 114:
-                    offsetleido = new string[4];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso(4) { evenType = analiza, indexNo = contador, evenName = "Entity Move To Axis", evenPos = offsetevento, evenStrings = offsetleido });
-                    break;
-                case 115:
-                    offsetleido = new string[4];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso(4) { evenType = analiza, indexNo = contador, evenName = "Entity Move To Axis With Camera", evenPos = offsetevento, evenStrings = offsetleido });
-                    break;
-                case 116:
-                    offsetleido = new string[3];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Spawn Item", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
-                    break;
-                case 117:
-                    offsetleido = new string[6];
-                    paquito = lector.ReadBytes(1);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[4] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[5] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso(6) { evenType = analiza, indexNo = contador, evenName = "Spawn Chest", evenPos = offsetevento, evenStrings = offsetleido });
-                    break;
-                case 118:
-                    paquito = lector.ReadBytes(1);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Spawn Boulder", evenPos = offsetevento });
-                    break;
-                case 119:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Move Boulder", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 120:
-                    paquito = lector.ReadBytes(1);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Despawn Boulder", evenPos = offsetevento });
-                    break;
-                case 121:
-                    paquito = lector.ReadBytes(1);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Unload Digimon", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 122:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "UFO 7A", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 123:
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "UFO 7B", evenPos = offsetevento, evenArg1 = leido });
-                    break;
-                case 124:
-                    offsetleido = new string[4];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso(4) { evenType = analiza, indexNo = contador, evenName = "UFO 7C", evenPos = offsetevento, evenStrings = offsetleido });
-                    break;
-                case 126:
-                    paquito = lector.ReadBytes(1);
-                    hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Spawn Sprite at Entity", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
-                    break;
-                case 251:
-                    offsetleido = new string[2];
-                    paquito = lector.ReadBytes(1);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    paquito = lector.ReadBytes(2);
-                    Array.Reverse(paquito);
-                    offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "Set Script", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
-                    break;
-                case 254:
-                    paquito = lector.ReadBytes(1);
-                    eventasos.Add(new Eventaso() { evenType = analiza, indexNo = contador, evenName = "End Section", evenPos = offsetevento });
-                    break;
-                default:
-                    eventasos.Add(new Eventaso() { evenType = 12, indexNo = contador, evenName = analiza.ToString("X")+" - Raw Data", evenPos = offsetevento });
-                    //donete = false;
-                    break;
 
-            }
+                        }
+                    eventasos.Add(new Eventaso(chuflen) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set selection", evenPos = offsetevento, evenStrings = offsetleido, evenArgInt = chuflen }) ;
+                        break;
+                    case 18:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "UFO 12", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 19:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Jump and Link", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 20:
+                        paquito = lector.ReadBytes(1);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Jump Return???", evenPos = offsetevento });
+                        break;
+                    case 21:
+                        paquito = lector.ReadBytes(1);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Jump Return", evenPos = offsetevento });
+                        break;
+                    case 22:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Jump", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 23:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Jump to File", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 24: //switch
+                        paquito = lector.ReadBytes(1);
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        int juli = paquito[1];
+                        bool correctswitch = true;
+                        try
+                        {
+                            juli = int.Parse(leido);
+                        }
+                        catch (System.FormatException)
+                        {
+                            correctswitch = false; ;
+                            juli = 1;
+                        };
+
+                        if (correctswitch)
+                        {
+
+                            juli = int.Parse(leido);
+                            offsetleido = new string[juli];
+                            for (int i = 0; i < juli; i++)
+                            {
+                                paquito = lector.ReadBytes(2);
+                                Array.Reverse(paquito);
+                                offsetleido[i] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                            }
+                        }
+                        else
+                        {
+                            offsetleido = new string[1];
+                            offsetleido[0] = "This is a fake switch";
+                        }
+                        eventasos.Add(new Eventaso(juli) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Switch", evenPos = offsetevento, evenStrings = offsetleido, evenArgInt = juli, evenArg1 = hex, evenArg2 = leido });
+                        break;
+                    case 25: //if
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        byte[] comperator;
+                        bool kepplooping = true;
+                        comperator = lector.ReadBytes(2);
+                        Array.Reverse(comperator);
+                        int buferinto = 0;
+                        int comperatorid = comperator[1];
+                        Array.Reverse(comperator);
+                        hex = BitConverter.ToString(comperator).Replace("-", string.Empty);
+                        offsetleido[0] += hex;
+                        while (kepplooping)
+                        {
+                            switch (comperatorid)
+                            {
+                                case 0:
+                                    paquito = lector.ReadBytes(2);
+                                    Array.Reverse(paquito);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    break;
+                                case 1:
+                                    paquito = lector.ReadBytes(2);
+                                    Array.Reverse(paquito);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    break;
+                                case 32:
+                                    paquito = lector.ReadBytes(1);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    paquito = lector.ReadBytes(1);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    paquito = lector.ReadBytes(2);
+                                    Array.Reverse(paquito);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    break;
+                                case 33:
+                                    paquito = lector.ReadBytes(1);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    paquito = lector.ReadBytes(1);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    paquito = lector.ReadBytes(2);
+                                    Array.Reverse(paquito);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    break;
+                                case 36:
+                                    paquito = lector.ReadBytes(1);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    paquito = lector.ReadBytes(1);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    paquito = lector.ReadBytes(2);
+                                    Array.Reverse(paquito);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    break;
+                                case 37:
+                                    paquito = lector.ReadBytes(1);
+                                    paquito = lector.ReadBytes(1);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    paquito = lector.ReadBytes(4);
+                                    Array.Reverse(paquito);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    break;
+                                default:
+                                    paquito = lector.ReadBytes(1);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    paquito = lector.ReadBytes(1);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    break;
+                            }
+                            paquito = lector.ReadBytes(2);
+                            buferinto = paquito[0];
+                            Array.Reverse(paquito);
+
+                            if (buferinto == 24)
+                            {
+                                kepplooping = false;
+                                Array.Reverse(paquito);
+                                offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                            }
+                            else
+                            {
+
+                                if (buferinto > 63 && buferinto < 127)
+                                {
+                                    Array.Reverse(paquito);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    Array.Reverse(paquito);
+                                    comperatorid = buferinto - 64;
+                                }
+                                if (buferinto > 127)
+                                {
+                                    Array.Reverse(paquito);
+                                    offsetleido[0] += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                                    Array.Reverse(paquito);
+                                    comperatorid = buferinto - 128;
+                                }
+
+                            }
+                            //Console.WriteLine(offsetleido[0]);
+                        }
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "IF", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 26:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        int bufferinto = 0;
+                        while (paquito.Length > 0 & hex != "0000")
+                        {
+                            bufferinto = BitConverter.ToUInt16(paquito, 0);
+                            if (bufferinto > 10000)
+                            {
+                                leido += jenc.GetString(paquito);
+                            }
+                            else
+                            {
+                                leido += "<" + BitConverter.ToString(paquito).Replace("-", string.Empty) + ">";
+                                if (hex == "0D00")
+                                {
+                                    leido += "\n";
+                                }
+                            }
+                            paquito = lector.ReadBytes(2);
+
+                            hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        }
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Show Text Box", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 27:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Dialog Owner", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 28:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Trigger", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 29:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Unset Trigger", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 30:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set P Stat", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 31:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Add P Stat", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 32:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Reduce P Stat", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 33:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Store Map ID", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 34:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Store Digimon Type", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 35:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Inventory Size", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 36:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Store Random", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 37:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Store Date", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 38:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Textbox Size", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 39:
+                        paquito = lector.ReadBytes(1);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Fadeout HUD", evenPos = offsetevento });
+                        break;
+                    case 40:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Give Item", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 41:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Remove Item", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 42:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(4);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Add Money", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 43:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(4);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Reduce Money", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 44: //CompareDate
+                        offsetleido = new string[8];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[4] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[5] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[6] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[7] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Compare Date", evenPos = offsetevento, evenStrings = offsetleido });
+                        break;
+                    case 45:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Learn Move", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 47:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Give Card", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 48:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Take Card", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 49:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Merit", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 50:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Add Merit", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 51:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Reduce Merit", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 52:
+                        paquito = lector.ReadBytes(1);
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Stat", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
+                        break;
+                    case 53:
+                        paquito = lector.ReadBytes(1);
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Add Stat", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
+                        break;
+                    case 54:
+                        paquito = lector.ReadBytes(1);
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Reduce Stat", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
+                        break;
+                    case 55:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Advance To Date At", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 56:
+                        paquito = lector.ReadBytes(1);
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(4);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Add Minutes to Date At", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
+                        break;
+                    case 57:
+                        paquito = lector.ReadBytes(1);
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(4);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Add Minutes to Date At2", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
+                        break;
+                    case 63:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Store Digimon Value", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 70:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Load Digimon", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 71:
+                        offsetleido = new string[3];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Digimon", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
+                        break;
+                    case 72:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Unload Entity", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 73:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Call Digimon Routine", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 74:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Wait for Entity", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 75:
+                        offsetleido = new string[3];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Warp To", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
+                        break;
+                    case 76:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Entity Look at Entity", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 77:
+                        paquito = lector.ReadBytes(1);
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Entity Set Rotation", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
+                        break;
+                    case 78:
+                        offsetleido = new string[4];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso(4) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Entity Walk To", evenPos = offsetevento, evenStrings = offsetleido });
+                        break;
+                    case 79:
+                        offsetleido = new string[3];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Move Camera To", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
+                        break;
+                    case 80:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Move Camera To Entity", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 81:
+                        offsetleido = new string[3];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Entity Walk To Entity", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
+                        break;
+                    case 82:
+                        offsetleido = new string[4];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso(4) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Entity Walk To With Camera", evenPos = offsetevento, evenStrings = offsetleido });
+                        break;
+                    case 83:
+                        offsetleido = new string[3];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Entity Walk To Entity With Camera", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
+                        break;
+                    case 84:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Patrol", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 85:
+                        offsetleido = new string[3];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Textbox Origin", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
+                        break;
+                    case 86:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Play Animation", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 87:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Object Visibility", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 88:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Teleport", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 90:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Play Sound", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 93:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set BGM", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 94:
+                        paquito = lector.ReadBytes(1);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Stop BGM", evenPos = offsetevento });
+                        break;
+                    case 100:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Call Routine", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 101:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Remove Condition", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 102:
+                        paquito = lector.ReadBytes(1);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Start Battle", evenPos = offsetevento });
+                        break;
+                    case 103:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Delay (Wait)", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 104:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Textbox Autoclose Delay", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 105:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Deal Damage", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 106:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Autotalk", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 107: //Comando especial, requiere investigación
+                        paquito = lector.ReadBytes(1);
+                        bool chuperloop = true;
+                        hex = "";
+                        while (chuperloop)
+                        {
+                            paquito = lector.ReadBytes(1);
+                            hex += BitConverter.ToString(paquito).Replace("-", string.Empty);
+                            if (paquito[0] > 254)
+                            {
+                                chuperloop = false;
+                            }
+                        }
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Unknown function 6B", evenPos = offsetevento, evenArg1 = hex });
+                        break;
+                    case 108:
+                        offsetleido = new string[4];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso(4) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Entity Move To", evenPos = offsetevento, evenStrings = offsetleido });
+                        break;
+                    case 112:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Rotate 3D Object", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 113:
+                        offsetleido = new string[7];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[4] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[5] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[6] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso(7) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Move Object To", evenPos = offsetevento, evenStrings = offsetleido });
+                        break;
+                    case 114:
+                        offsetleido = new string[4];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso(4) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Entity Move To Axis", evenPos = offsetevento, evenStrings = offsetleido });
+                        break;
+                    case 115:
+                        offsetleido = new string[4];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso(4) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Entity Move To Axis With Camera", evenPos = offsetevento, evenStrings = offsetleido });
+                        break;
+                    case 116:
+                        offsetleido = new string[3];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Spawn Item", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1], evenArg3 = offsetleido[2] });
+                        break;
+                    case 117:
+                        offsetleido = new string[6];
+                        paquito = lector.ReadBytes(1);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[4] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[5] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso(6) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Spawn Chest", evenPos = offsetevento, evenStrings = offsetleido });
+                        break;
+                    case 118:
+                        paquito = lector.ReadBytes(1);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Spawn Boulder", evenPos = offsetevento });
+                        break;
+                    case 119:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Move Boulder", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        break;
+                    case 120:
+                        paquito = lector.ReadBytes(1);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Despawn Boulder", evenPos = offsetevento });
+                        break;
+                    case 121:
+                        paquito = lector.ReadBytes(1);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Unload Digimon", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 122:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "UFO 7A", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 123:
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "UFO 7B", evenPos = offsetevento, evenArg1 = leido });
+                        break;
+                    case 124:
+                        offsetleido = new string[4];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[2] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[3] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso(4) { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "UFO 7C", evenPos = offsetevento, evenStrings = offsetleido });
+                        break;
+                    case 126:
+                        paquito = lector.ReadBytes(1);
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        leido = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Spawn Sprite at Entity", evenPos = offsetevento, evenArg1 = hex, evenArg2 = leido });
+                        break;
+                    case 251:
+                        offsetleido = new string[2];
+                        paquito = lector.ReadBytes(1);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[0] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        paquito = lector.ReadBytes(2);
+                        Array.Reverse(paquito);
+                        offsetleido[1] = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "Set Script", evenPos = offsetevento, evenArg1 = offsetleido[0], evenArg2 = offsetleido[1] });
+                        //donete = true;
+                        break;
+                    case 254:
+                        paquito = lector.ReadBytes(1);
+                        eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "End Section", evenPos = offsetevento });
+                        //donete = false;
+                        break;
+                    case 255:
+                        paquito = lector.ReadBytes(1);
+                        int yuyo = paquito[0];
+                        if (yuyo == 0 || yuyo == 255)
+                        {
+                            eventasos.Add(new Eventaso() { evenType = analiza, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = "End of script", evenPos = offsetevento, evenArg1 = leido });
+                            donete = true;
+                        }
+                        /*paquito = lector.ReadBytes(2);
+                        hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                        leido = hex;
+                        while (hex != "FE00")
+                        {
+                            paquito = lector.ReadBytes(2);
+                            hex = BitConverter.ToString(paquito).Replace("-", string.Empty);
+                            leido += hex;
+                        }*/
+                        
+                        break;
+                    default:
+                        eventasos.Add(new Eventaso() { evenType = 12, scriptId = scripid, scriptSection = section, indexNo = contador, evenName = analiza.ToString("X2") + " - Raw Data", evenPos = offsetevento });
+                        //donete = false;
+                        break;
+
+                }
+            
             return donete;
         }
 
@@ -1196,6 +1325,7 @@ namespace DW_Script_decoder
             {
                 string aveve = listaEventos.SelectedItem.ToString();
                 int chupindex = Convert.ToInt32(aveve.Substring(0,6));
+                int chupioffset = Convert.ToInt32(aveve.Substring(15,6),16);
                 string decodedEvent = "";
                 switch (eventasos[chupindex].evenType)
                 {
@@ -1212,6 +1342,9 @@ namespace DW_Script_decoder
                     case 19:
                         decodedEvent += "Jump to Instruction and Link call : " + eventasos[chupindex].evenArg1;
                         break;
+                    case 20:
+                        decodedEvent += "Return to jumping point???.";
+                        break;
                     case 21:
                         decodedEvent += "Return to Calling instruction.";
                         break;
@@ -1222,7 +1355,7 @@ namespace DW_Script_decoder
                         decodedEvent += "Jump to File : " + eventasos[chupindex].evenArg1 + " at " + eventasos[chupindex].evenArg2;
                         break;
                     case 24:
-                        decodedEvent += "Switch with PStat: "+ eventasos[chupindex].evenArg1;
+                        decodedEvent += "Switch with PStat: "+ eventasos[chupindex].evenArg1+"\nNumber of cases: "+ eventasos[chupindex].evenArg2;
                         for (int i = 0; i < eventasos[chupindex].evenArgInt; i++)
                         {
                             decodedEvent += "\nCase " + (i + 1) + ": - Jump to: " + eventasos[chupindex].evenStrings[i];
@@ -1608,10 +1741,15 @@ namespace DW_Script_decoder
                     case 254:
                         decodedEvent += "End of script section.";
                         break;
+                    case 255:
+                        decodedEvent += "Script force end.";
+                        break;
                     default:
                         break;
                 }
                 contenidoEvento.Text = decodedEvent;
+                boxnumse.Text = chupindex.ToString("000000");
+                boxoffse.Text = chupioffset.ToString("X6");
             }
         }
 
@@ -1627,29 +1765,191 @@ namespace DW_Script_decoder
                 filterino = int.Parse(indicillor.Substring(0,2), System.Globalization.NumberStyles.HexNumber);
 
             }
-            for (int i = 0; i < eventasos.Count; i++)
+            for (int i = 0; i < eventasosdisplay.Count; i++)
             {
                 if (wefilter)
                 {
                     if (filterino == 11)
                     {
-                        if (eventasos[i].evenType != 12)
+                        if (eventasosdisplay[i].evenType != 12)
                         {
-                            listaEventos.Items.Add(i.ToString("000000") + " - " + eventasos[i].evenPos + " - " + eventasos[i].evenName);
+                            listaEventos.Items.Add(eventasosdisplay[i].indexNo.ToString("000000") + " - " + eventasosdisplay[i].scriptSection.ToString("000") + " - " + eventasosdisplay[i].evenPos + " - " + eventasosdisplay[i].evenName);
                         }
                     }
                     else
                     {
-                        if (eventasos[i].evenType == filterino)
+                        if (eventasosdisplay[i].evenType == filterino)
                         {
-                            listaEventos.Items.Add(i.ToString("000000") + " - " + eventasos[i].evenPos + " - " + eventasos[i].evenName);
+                            listaEventos.Items.Add(eventasosdisplay[i].indexNo.ToString("000000") + " - " + eventasosdisplay[i].scriptSection.ToString("000") + " - " + eventasosdisplay[i].evenPos + " - " + eventasosdisplay[i].evenName);
                         }
                     }
                 }
                 else
                 {
-                    listaEventos.Items.Add(i.ToString("000000") + " - " + eventasos[i].evenPos + " - " + eventasos[i].evenName);
+                    listaEventos.Items.Add(eventasosdisplay[i].indexNo.ToString("000000") + " - " + eventasosdisplay[i].scriptSection.ToString("000") + " - " + eventasosdisplay[i].evenPos + " - " + eventasosdisplay[i].evenName);
                 }
+            }
+        }
+
+        private void botonsearchnum_Click(object sender, RoutedEventArgs e)
+        {
+            if (fileIsLoaded)
+            {
+                bool validated = Validatenumse(boxnumse.Text);
+
+                if (validated)
+                {
+                    string aveve = "";
+                    string formatted = boxnumse.Text;
+                    bool found = false;
+                    while (formatted.Length < 6)
+                    {
+                        formatted = "0" + formatted;
+                    }
+                    for (int i = 0; i < listaEventos.Items.Count; i++)
+                    {
+                        aveve = listaEventos.Items[i].ToString();
+                        if (formatted == aveve.Substring(0, 6))
+                        {
+                            listaEventos.SelectedIndex = i;
+                            listaEventos.ScrollIntoView(listaEventos.SelectedItem);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        MessageBox.Show("Couldn't fin Instrucion Number,\ntry another filter.", "Not found", MessageBoxButton.OK);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Please insert only numbers: 0-9", "Caution", MessageBoxButton.OK);
+                }
+            }
+        }
+
+        public bool Validatenumse(string evaluate)
+        {
+            bool resultado = true;
+            char[] evaluar = evaluate.ToCharArray();
+            for (int i = 0; i < evaluar.Length; i++)
+            {
+                switch (evaluar[i])
+                {
+                    case '0': break;
+                    case '1': break;
+                    case '2': break;
+                    case '3': break;
+                    case '4': break;
+                    case '5': break;
+                    case '6': break;
+                    case '7': break;
+                    case '8': break;
+                    case '9': break;
+                    default:
+                        resultado = false;
+                        break;
+
+                }
+            }
+            return resultado;
+        }
+
+        private void botonsearchoff_Click(object sender, RoutedEventArgs e)
+        {
+            if (fileIsLoaded)
+            {
+                bool validated = Validateoffse(boxoffse.Text); ;
+
+                if (validated)
+                {
+                    string aveve = "";
+                    string formatted = boxoffse.Text;
+                    bool found = false;
+                    while (formatted.Length < 6)
+                    {
+                        formatted = "0" + formatted;
+                    }
+                    for (int i = 0; i < listaEventos.Items.Count; i++)
+                    {
+                        aveve = listaEventos.Items[i].ToString();
+                        if (formatted == aveve.Substring(9, 6))
+                        {
+                            listaEventos.SelectedIndex = i;
+                            listaEventos.ScrollIntoView(listaEventos.SelectedItem);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        MessageBox.Show("Couldn't find offset. Not assigned to an instruction, or filtered out.", "Not found", MessageBoxButton.OK);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Please insert only hex numbers: 0-9 A-F\nOnly Caps are accepted for now.","Caution", MessageBoxButton.OK);
+                }
+            }
+        }
+        public bool Validateoffse(string evaluate)
+        {
+            bool resultado = true;
+            char[] evaluar = evaluate.ToCharArray();
+            for (int i = 0; i < evaluar.Length; i++)
+            {
+                switch (evaluar[i])
+                {
+                    case '0': break;
+                    case '1': break;
+                    case '2': break;
+                    case '3': break;
+                    case '4': break;
+                    case '5': break;
+                    case '6': break;
+                    case '7': break;
+                    case '8': break;
+                    case '9': break;
+                    case 'A': break;
+                    case 'B': break;
+                    case 'C': break;
+                    case 'D': break;
+                    case 'E': break;
+                    case 'F': break;
+                    default:
+                        resultado = false;
+                        break;
+
+                }
+            }
+            return resultado;
+        }
+
+        private void listaScripts_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (fileIsLoaded & (listaScripts.SelectedIndex != -1))
+            {
+                listaEventos.Items.Clear();
+                eventasosdisplay.Clear();
+                if (listaScripts.SelectedIndex == 0)
+                {
+                    eventasosdisplay = eventasos;
+                }
+                else {
+                    for (int i = 0; i < eventasos.Count; i++)
+                    {
+                        if(eventasos[i].scriptId == (listaScripts.SelectedIndex - 1))
+                        {
+                            eventasosdisplay.Add(eventasos[i]);
+
+                        }
+                    }
+                }
+                for (int i = 0; i < eventasosdisplay.Count; i++)
+                {
+                    listaEventos.Items.Add(eventasosdisplay[i].indexNo.ToString("000000") + " - " + eventasosdisplay[i].scriptSection.ToString("000") + " - " + eventasosdisplay[i].evenPos + " - " + eventasosdisplay[i].evenName);
+                } 
             }
         }
     }
