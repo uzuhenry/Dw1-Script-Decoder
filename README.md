@@ -2,13 +2,17 @@
 
 This is a tool to help anyone read and understand the game script for the game Digimon World for PSX.
 
-Open a .SCN file for any version and look up whatever you want!
+Open a DG.SCN file for any version and look up whatever you want!
 
 There's still some instructions which use is still unknown, i hope this tool allows to bring a little more light to those so we can fully map'em. Also, the decoder also shows raw data, this allows for debugging (there's still the chance to missreadings, it's hard to test on my own).
 
 You also have the option to hide raw data, or filter by a specific instruction type(godsend if you want to map text).
 
-The tool, also stores the file header, though it doesn't anything with it yet.
+The format for instructions on the list is as follows:
+
+{Instruction number} - {Script section} - {Hex offset} - {Instruction name}
+
+It doesn't handle MAPHEAD.SCN files for now. That's for another update ^^
 
 
 # Thanks to:
@@ -21,8 +25,6 @@ The tool, also stores the file header, though it doesn't anything with it yet.
 # Proyected updates:
 
 -Rebuilding .SCN file feature
-
--Adding instruction number, and instruction offset searchbars
 
 -Editing instructions
 
