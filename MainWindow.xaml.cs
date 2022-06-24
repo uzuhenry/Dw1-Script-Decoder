@@ -175,7 +175,7 @@ namespace DW_Script_decoder
                         
                         for (int i = 0; i < eventasos.Count; i++)
                         {
-                            listaEventos.Items.Add(i.ToString("000000") + " - " + eventasos[i].scriptSection.ToString("000") + " - " + eventasos[i].evenPos + " - "+eventasos[i].evenName);
+                            listaEventos.Items.Add(eventasos[i].indexNo.ToString("000000") + " - " + eventasos[i].scriptSection.ToString("000") + " - " + eventasos[i].evenPos + " - "+eventasos[i].evenName);
                         }
                         fileIsLoaded=true;
                         counterEven = 0;
