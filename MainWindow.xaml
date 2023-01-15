@@ -5,19 +5,23 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DW_Script_decoder"
         mc:Ignorable="d"
-        Title="DW1 Script Decoder by Uzuhenry" Height="720" Width="1280">
-    <Grid>
+        Title="DW1 Script Decoder by Uzuhenry" Height="705" Width="1285" ResizeMode="NoResize">
+    <Grid Margin="0,0,0,0">
         <Grid.RowDefinitions>
-            <RowDefinition Height="171*"/>
-            <RowDefinition Height="181*"/>
         </Grid.RowDefinitions>
         <Grid.Background>
-            <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
-                <GradientStop Color="#FF7AA1EF"/>
-                <GradientStop Color="#FF02D6BE" Offset="1"/>
-            </LinearGradientBrush>
+            <ImageBrush Stretch="UniformToFill" ImageSource="/testbackground.jpg">
+                <ImageBrush.RelativeTransform>
+                    <TransformGroup>
+                        <ScaleTransform CenterY="0.5" CenterX="0.5"/>
+                        <SkewTransform CenterX="0.5" CenterY="0.5"/>
+                        <RotateTransform CenterX="0.5" CenterY="0.5"/>
+                        <TranslateTransform Y="0" X="0"/>
+                    </TransformGroup>
+                </ImageBrush.RelativeTransform>
+            </ImageBrush>
         </Grid.Background>
-        <Button x:Name="botonAbrir" Content="Open file" HorizontalAlignment="Left" Height="85" Margin="42,53,0,0" VerticalAlignment="Top" Width="191" Click="botonAbrir_Click" FontWeight="Bold" FontSize="16">
+        <Button x:Name="botonAbrir" Content="Open DG file" HorizontalAlignment="Left" Height="44" Margin="42,53,0,0" VerticalAlignment="Top" Width="191" Click="botonAbrir_Click" FontWeight="Bold" FontSize="16">
             <Button.Background>
                 <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
                     <GradientStop Color="#FFD5FBB0"/>
@@ -25,20 +29,111 @@
                 </LinearGradientBrush>
             </Button.Background>
         </Button>
-        <ListBox x:Name="listaEventos" Margin="546,53,426,36" d:ItemsSource="{d:SampleData ItemCount=5}" SelectionChanged="listaEventos_SelectionChanged" Grid.RowSpan="2"/>
-        <TextBox x:Name="contenidoEvento" HorizontalAlignment="Left" Height="299" Margin="878,53,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="370" FontSize="16" Grid.RowSpan="2"/>
-        <ComboBox x:Name="supahcombobax" HorizontalAlignment="Left" Height="45" Margin="878,58,0,0" VerticalAlignment="Top" Width="370" SelectionChanged="supahcombobax_SelectionChanged" FontSize="16" Grid.Row="1"/>
-        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,36,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Grid.Row="1"><Run Language="es-es" Text="Instruction filter:"/></TextBlock>
-        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold"><Run Text="Instruction "/><Run Language="es-es" Text="content"/><Run Text=":"/></TextBlock>
-        <TextBlock HorizontalAlignment="Left" Height="22" Margin="553,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold"><Run Text="Instruction "/><Run Language="es-es" Text="list:"/></TextBlock>
-        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,140,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Grid.Row="1"><Run Text="Instruction"/><Run Language="es-es" Text=" number search:"/></TextBlock>
-        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,223,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Grid.Row="1"><Run Text="Instruction "/><Run Language="es-es" Text="offset search:"/></TextBlock>
-        <TextBox x:Name="boxnumse" HorizontalAlignment="Left" Height="37" Margin="878,167,0,0" Grid.Row="1" TextWrapping="Wrap" Text="000000" VerticalAlignment="Top" Width="201" TextAlignment="Left" InputScope="Number" FontSize="20" FontWeight="Bold"/>
-        <TextBox x:Name="boxoffse" HorizontalAlignment="Left" Height="37" Margin="878,250,0,0" Grid.Row="1" TextWrapping="Wrap" Text="000000" VerticalAlignment="Top" Width="201" InputScope="Number" FontSize="20" FontWeight="Bold"/>
-        <Button x:Name="botonsearchnum" Content="Number Search" HorizontalAlignment="Left" Height="37" Margin="1093,167,0,0" Grid.Row="1" VerticalAlignment="Top" Width="156" FontWeight="Bold" Click="botonsearchnum_Click"/>
-        <Button x:Name="botonsearchoff" Content="Offset Search" HorizontalAlignment="Left" Height="37" Margin="1093,250,0,0" Grid.Row="1" VerticalAlignment="Top" Width="156" FontWeight="Bold" Click="botonsearchoff_Click"/>
-        <ListBox x:Name="listaScripts" Margin="294,53,759,158" d:ItemsSource="{d:SampleData ItemCount=5}" Grid.RowSpan="2" SelectionChanged="listaScripts_SelectionChanged"/>
-        <TextBlock HorizontalAlignment="Left" Height="22" Margin="306,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold"><Run Language="es-es" Text="Script "/><Run Text="list:"/></TextBlock>
+        <ListBox x:Name="listaEventos" Margin="546,53,426,34" d:ItemsSource="{d:SampleData ItemCount=5}" SelectionChanged="listaEventos_SelectionChanged" Background="White"/>
+        <TextBox x:Name="contenidoEvento" HorizontalAlignment="Left" Margin="878,53,0,335" TextWrapping="Wrap" Width="370" FontSize="16"/>
+        <ComboBox x:Name="supahcombobax" HorizontalAlignment="Left" Height="45" Margin="878,452,0,0" VerticalAlignment="Top" Width="370" SelectionChanged="supahcombobax_SelectionChanged" FontSize="16"/>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,429,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Foreground="White"><Run Language="es-es" Text="Instruction filter:"/></TextBlock>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Foreground="White"><Run Text="Instruction "/><Run Language="es-es" Text="content"/><Run Text=":"/></TextBlock>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="553,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Foreground="White"><Run Text="Instruction "/><Run Language="es-es" Text="list:"/></TextBlock>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,510,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Foreground="White"><Run Text="Instruction"/><Run Language="es-es" Text=" number search:"/></TextBlock>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,584,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Foreground="White" Text="Instruction position search:"/>
+        <TextBox x:Name="boxnumse" HorizontalAlignment="Left" Height="37" Margin="878,536,0,0" TextWrapping="Wrap" Text="000000" VerticalAlignment="Top" Width="201" TextAlignment="Left" InputScope="Number" FontSize="20" FontWeight="Bold"/>
+        <TextBox x:Name="boxoffse" HorizontalAlignment="Left" Height="37" Margin="878,617,0,0" TextWrapping="Wrap" Text="000000" VerticalAlignment="Top" Width="201" InputScope="Number" FontSize="20" FontWeight="Bold"/>
+        <Button x:Name="botonsearchnum" Content="Number Search" HorizontalAlignment="Left" Height="37" Margin="1093,536,0,0" VerticalAlignment="Top" Width="156" FontWeight="Bold" Click="botonsearchnum_Click"/>
+        <Button x:Name="botonsearchoff" Content="Position Search" HorizontalAlignment="Left" Height="37" Margin="1093,617,0,0" VerticalAlignment="Top" Width="156" FontWeight="Bold" Click="botonsearchoff_Click"/>
+        <ListBox x:Name="listaScripts" Margin="294,53,759,303" d:ItemsSource="{d:SampleData ItemCount=5}" SelectionChanged="listaScripts_SelectionChanged"/>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="306,26,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Foreground="White"><Run Language="es-es" Text="Script "/><Run Text="list:"/></TextBlock>
+        <TextBlock HorizontalAlignment="Left" Height="22" Margin="886,355,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="355" FontSize="14" FontWeight="Bold" Foreground="White"><Run Language="es-es" Text="Instruction RAW string:"/></TextBlock>
+        <Button x:Name="botonCrear" Content="Create DG file" HorizontalAlignment="Left" Height="44" Margin="42,116,0,0" VerticalAlignment="Top" Width="191" FontWeight="Bold" FontSize="16" Click="botonCrear_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFFBF5B0"/>
+                    <GradientStop Color="#FFCAB10D" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <TextBox x:Name="contenidoEventoraw" HorizontalAlignment="Left" Margin="879,381,0,0" TextWrapping="Wrap" Width="370" FontSize="16" RenderTransformOrigin="0.5,0.5" Height="43" VerticalAlignment="Top">
+            <TextBox.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleY="1"/>
+                    <SkewTransform/>
+                    <RotateTransform/>
+                    <TranslateTransform/>
+                </TransformGroup>
+            </TextBox.RenderTransform>
+        </TextBox>
+        <Button x:Name="botonEscribir" Content="  WRITE TEXT&#xD;&#xA;INSTRUCTION" HorizontalAlignment="Left" Height="69" Margin="294,392,0,0" VerticalAlignment="Top" Width="227" FontWeight="Bold" FontSize="18" Click="botonEscribir_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFEDBE9D"/>
+                    <GradientStop Color="#FFE0770D" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <Button x:Name="botonNuevotext" Content=" INSERT TEXT&#xD;&#xA;INSTRUCTION" HorizontalAlignment="Left" Height="64" Margin="294,467,0,0" VerticalAlignment="Top" Width="227" FontWeight="Bold" FontSize="18" Click="botonNuevotext_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFEC9DED"/>
+                    <GradientStop Color="#FFA40DE0" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <Button x:Name="botonCSV" Content="Generate CSV Files" HorizontalAlignment="Left" Height="60" Margin="42,308,0,0" VerticalAlignment="Top" Width="191" FontWeight="Bold" FontSize="16" Click="botonCSV_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFA0D1EC"/>
+                    <GradientStop Color="#FF438EF3" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <Button x:Name="botonAbrir_MH" Content="Open MAPHEAD file" HorizontalAlignment="Left" Height="44" Margin="42,180,0,0" VerticalAlignment="Top" Width="191" FontWeight="Bold" FontSize="16" Click="botonAbrir_MH_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFD5FBB0"/>
+                    <GradientStop Color="#FF0DCA10" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <Button x:Name="botonCrear_MH" Content="Create MAPHEAD file" HorizontalAlignment="Left" Height="44" Margin="42,245,0,0" VerticalAlignment="Top" Width="191" FontWeight="Bold" FontSize="16" Click="botonCrear_MH_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFFBEEB0"/>
+                    <GradientStop Color="#FFCAC30D" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <Button x:Name="botonCSV_load" Content="Load patch CSV Files" HorizontalAlignment="Left" Height="60" Margin="42,382,0,0" VerticalAlignment="Top" Width="191" FontWeight="Bold" FontSize="16" Click="botonCSV_load_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFA0D1EC"/>
+                    <GradientStop Color="#FF436EF3" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <Button x:Name="botonCSVItem" Content="Generate ITEM CSV File" HorizontalAlignment="Left" Height="60" Margin="42,467,0,0" VerticalAlignment="Top" Width="191" FontWeight="Bold" FontSize="16" Click="botonCSVItem_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFACF5E3"/>
+                    <GradientStop Color="#FF43F3DF" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <Button x:Name="botonCSVChest" Content="Generate Chest CSV File" HorizontalAlignment="Left" Height="60" Margin="42,555,0,0" VerticalAlignment="Top" Width="191" FontWeight="Bold" FontSize="16" Click="botonCSVChest_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFACF5E3"/>
+                    <GradientStop Color="#FF43F3DF" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
+        <Button x:Name="botonEscribirRAW" Content="EDIT RAW INSTRUCTION&#xA;      (Really dangerous)" HorizontalAlignment="Left" Height="69" Margin="294,546,0,0" VerticalAlignment="Top" Width="227" FontWeight="Bold" FontSize="18" Foreground="#FFEFEFEF" Click="botonEscribirRAW_Click">
+            <Button.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="#FFF76666"/>
+                    <GradientStop Color="#FF770000" Offset="1"/>
+                </LinearGradientBrush>
+            </Button.Background>
+        </Button>
 
 
 
